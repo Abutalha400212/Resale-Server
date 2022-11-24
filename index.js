@@ -65,6 +65,12 @@ async function runRellerDb() {
       const result = await userCollection.find(query).toArray()
       res.send(result)
     })
+    app.get('/users/seller',async(req,res)=>{
+      const account = req.query.account
+      const query = {account: account}
+      const result = await userCollection.find(query).toArray()
+      res.send(result)
+    })
     app.get("/jwt", async (req, res) => {
       const email = req.query.email;
       const filter = { email: email };
