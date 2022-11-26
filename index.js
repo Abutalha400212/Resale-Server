@@ -1,9 +1,11 @@
 const express = require("express");
 const cors = require("cors");
+require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY)
 const app = express();
 const jwt = require("jsonwebtoken");
-require("dotenv").config();
+
 const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
@@ -21,11 +23,38 @@ async function runRellerDb() {
       .db("reseller-market")
       .collection("categories-item");
     const userCollection = client.db("reseller-market").collection("users");
-    const bookingCollection = client.db("reseller-market").collection("booking")
-    app.post('/booking',async(req,res)=>{
-      const result = await bookingCollection.insertOne(req.body)
-      res.send(result)
-    })
+    const bookingCollection = client
+      .db("reseller-market")
+      .collection("booking");
+    app.post("/booking", async (req, res) => {
+      const result = await bookingCollection.insertOne(req.body);
+      res.send(result);
+    });
+    app.get("/booking", async (req, res) => {
+      const email = req.query.email;
+      const result = await bookingCollection.find({ email: email }).toArray();
+      res.send(result);
+    });
+    app.post("/create-payment-intent", async (req, res) => {
+      const order = req.body;
+      const { price } = order;
+      const amount = parseFloat(price) * 100;
+      const paymentIntent = await stripe.paymentIntents.create({
+        currency:'usd',
+        amount:amount,
+        "payment_method_types":[
+          "card"
+        ]
+      })
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
+    });
+    app.get("/booking/:id", async (req, res) => {
+      const id = req.params.id;
+      const result = await bookingCollection.findOne({ _id: ObjectId(id) });
+      res.send(result);
+    });
     app.get("/category", async (req, res) => {
       const result = await categoriesItemCollection.find({}).toArray();
       const newItem = [...new Set(result.map((item) => item.brand))];
@@ -38,10 +67,10 @@ async function runRellerDb() {
 
       res.send(result);
     });
-    app.get('/allItem',async(req,res)=>{
-      const result = await categoriesItemCollection.find({}).toArray()
-      res.send(result)
-    })
+    app.get("/allItem", async (req, res) => {
+      const result = await categoriesItemCollection.find({}).toArray();
+      res.send(result);
+    });
     app.put("/users/seller/:email", async (req, res) => {
       const { email } = req.params;
       const status = req.body.status;
@@ -51,7 +80,21 @@ async function runRellerDb() {
         },
       };
       const result = await userCollection.updateOne(
-        {email:email},
+        { email: email },
+        updateStatus
+      );
+      res.send(result);
+    });
+    app.put("/products/:id", async (req, res) => {
+      const { id } = req.params;
+      const status = req.body.status;
+      const updateStatus = {
+        $set: {
+          status: status,
+        },
+      };
+      const result = await categoriesItemCollection.updateOne(
+        { _id: ObjectId(id) },
         updateStatus
       );
       res.send(result);
