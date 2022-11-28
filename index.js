@@ -85,13 +85,6 @@ async function runRellerDb() {
         email: filter.email,
         meet: filter.meet,
       };
-      const alreadyCollected = await advertiseCollection.find(query).toArray();
-      if (alreadyCollected.length) {
-        return res.send({
-          success: false,
-          message: `Already have this Item in your Advertise `,
-        });
-      }
 
       const result = await advertiseCollection.insertOne(filter);
       if (result.insertedId) {
@@ -215,13 +208,7 @@ async function runRellerDb() {
       const result = await bookingCollection.deleteOne({ _id: ObjectId(id) });
       res.send(result);
     });
-    app.get("/categoriesItemDetails/:id", JWTVerifyToken, async (req, res) => {
-      const id = req.params.id;
-      const result = await categoriesItemCollection.findOne({
-        _id: ObjectId(id),
-      });
-      res.send(result);
-    });
+   
     app.post(
       "/addCategoryItem",
       JWTVerifyToken,
@@ -292,19 +279,6 @@ async function runRellerDb() {
     });
     app.post("/wishlist", async (req, res) => {
       const filter = req.body;
-      const query = {
-        customer: filter.customer,
-        email: filter.email,
-        meet: filter.meet,
-      };
-      const alreadyCollected = await wishlistCollection.find(query).toArray();
-      if (alreadyCollected.length) {
-        return res.send({
-          success: false,
-          message: `Already have this Item in your Wishlist `,
-        });
-      }
-
       const result = await wishlistCollection.insertOne(filter);
       if (result.insertedId) {
         res.send({
@@ -328,7 +302,7 @@ async function runRellerDb() {
           status: status,
         },
       };
-      const result = await categoriesItemCollection.updateOne(
+      const result = await wishlistCollection.updateOne(
         { Cellphone: Cellphone },
         updateStatus
       );
