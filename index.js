@@ -46,6 +46,9 @@ async function runRellerDb() {
     const advertiseCollection = client
       .db("reseller-market")
       .collection("advertise");
+    const wishlistCollection = client
+      .db("reseller-market")
+      .collection("wishlist");
     const verifyAdmin = async (req, res, next) => {
       const decodedEmail = req.decoded.email;
       const query = { email: decodedEmail };
@@ -70,11 +73,11 @@ async function runRellerDb() {
     });
     app.get("/advertise", async (req, res) => {
       const items = await advertiseCollection.find({}).toArray();
-      const results = items.filter(obj => {
+      const results = items.filter((obj) => {
         return !obj.status;
       });
-      res.send(results)
-    })
+      res.send(results);
+    });
     app.post("/advertise", async (req, res) => {
       const filter = req.body;
       const query = {
@@ -164,7 +167,7 @@ async function runRellerDb() {
         res.send(result);
       }
     );
-    app.put("/products/:id",  async (req, res) => {
+    app.put("/products/:id", async (req, res) => {
       const { id } = req.params;
       const status = req.body.status;
       const updateStatus = {
@@ -178,20 +181,7 @@ async function runRellerDb() {
       );
       res.send(result);
     });
-    app.put("/orders/:Cellphone", async (req, res) => {
-      const { Cellphone } = req.params;
-      const status = req.body.status;
-      const updateStatus = {
-        $set: {
-          status: status,
-        },
-      };
-      const result = await advertiseCollection.updateOne(
-        {Cellphone:Cellphone},
-        updateStatus
-      );
-      res.send(result);
-    });
+
     app.put("/ordersOne/:Cellphone", async (req, res) => {
       const { Cellphone } = req.params;
       const status = req.body.status;
@@ -200,8 +190,8 @@ async function runRellerDb() {
           status: status,
         },
       };
-      const result= await advertiseCollection.updateOne(
-        {Cellphone:Cellphone},
+      const result = await advertiseCollection.updateOne(
+        { Cellphone: Cellphone },
         updateStatus
       );
       res.send(result);
@@ -214,8 +204,8 @@ async function runRellerDb() {
           status: status,
         },
       };
-      const result= await categoriesItemCollection.updateOne(
-        {Cellphone:Cellphone},
+      const result = await categoriesItemCollection.updateOne(
+        { Cellphone: Cellphone },
         updateStatus
       );
       res.send(result);
@@ -265,7 +255,7 @@ async function runRellerDb() {
       const result = await userCollection.deleteOne({ _id: ObjectId(id) });
       res.send(result);
     });
-    app.post("/users", JWTVerifyToken, async (req, res) => {
+    app.post("/users", async (req, res) => {
       const user = req.body;
       const result = await userCollection.insertOne(user);
       res.send(result);
@@ -294,13 +284,57 @@ async function runRellerDb() {
       const user = await userCollection.findOne(query);
       res.send({ isSeller: user?.account === "seller" });
     });
-    app.get("/users/user", JWTVerifyToken, verifyAdmin, async (req, res) => {
+    app.get("/users/user", async (req, res) => {
       const account = req.query.account;
       const query = { account: account };
       const result = await userCollection.find(query).toArray();
       res.send(result);
     });
-    app.get("/users/seller", JWTVerifyToken, verifyAdmin, async (req, res) => {
+    app.post("/wishlist", async (req, res) => {
+      const filter = req.body;
+      const query = {
+        customer: filter.customer,
+        email: filter.email,
+        meet: filter.meet,
+      };
+      const alreadyCollected = await wishlistCollection.find(query).toArray();
+      if (alreadyCollected.length) {
+        return res.send({
+          success: false,
+          message: `Already have this Item in your Wishlist `,
+        });
+      }
+
+      const result = await wishlistCollection.insertOne(filter);
+      if (result.insertedId) {
+        res.send({
+          success: true,
+        });
+      }
+    });
+    app.get("/wishlist", async (req, res) => {
+      const email = req.query.email
+      const items = await wishlistCollection.find({email:email}).toArray();
+      const results = items.filter((obj) => {
+        return !obj.status;
+      });
+      res.send(results);
+    });
+    app.put("/wishlist/:Cellphone", async (req, res) => {
+      const { Cellphone } = req.params;
+      const status = req.body.status;
+      const updateStatus = {
+        $set: {
+          status: status,
+        },
+      };
+      const result = await categoriesItemCollection.updateOne(
+        { Cellphone: Cellphone },
+        updateStatus
+      );
+      res.send(result);
+    });
+    app.get("/users/seller", async (req, res) => {
       const account = req.query.account;
       const query = { account: account };
       const result = await userCollection.find(query).toArray();
