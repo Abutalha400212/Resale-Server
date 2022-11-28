@@ -32,6 +32,7 @@ function JWTVerifyToken(req, res, next) {
 }
 async function runRellerDb() {
   try {
+    // Database Collection //
     console.log("db connected");
     const categoriesItemCollection = client
       .db("reseller-market")
@@ -49,6 +50,7 @@ async function runRellerDb() {
     const wishlistCollection = client
       .db("reseller-market")
       .collection("wishlist");
+      // Verify Admin //
     const verifyAdmin = async (req, res, next) => {
       const decodedEmail = req.decoded.email;
       const query = { email: decodedEmail };
@@ -80,12 +82,6 @@ async function runRellerDb() {
     });
     app.post("/advertise", async (req, res) => {
       const filter = req.body;
-      const query = {
-        customer: filter.customer,
-        email: filter.email,
-        meet: filter.meet,
-      };
-
       const result = await advertiseCollection.insertOne(filter);
       if (result.insertedId) {
         res.send({
@@ -93,11 +89,11 @@ async function runRellerDb() {
         });
       }
     });
-    app.post("/payments", async (req, res) => {
+    app.post("/payments",JWTVerifyToken, async (req, res) => {
       const result = await paymentsCollection.insertOne(req.body);
       res.send(result);
     });
-    app.get("/booking", async (req, res) => {
+    app.get("/booking",JWTVerifyToken, async (req, res) => {
       const email = req.query.email;
       const query = { email: email };
       const result = await bookingCollection.find(query).toArray();
@@ -277,7 +273,7 @@ async function runRellerDb() {
       const result = await userCollection.find(query).toArray();
       res.send(result);
     });
-    app.post("/wishlist", async (req, res) => {
+    app.post("/wishlist",JWTVerifyToken, async (req, res) => {
       const filter = req.body;
       const result = await wishlistCollection.insertOne(filter);
       if (result.insertedId) {
