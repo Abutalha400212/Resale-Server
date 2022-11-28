@@ -1,11 +1,11 @@
+const express = require("express");
+const cors = require("cors");
+const jwt = require("jsonwebtoken");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
 const port = process.env.PORT || 5000;
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
-const express = require("express");
-const cors = require("cors");
 const app = express();
-const jwt = require("jsonwebtoken");
 
 app.use(cors());
 app.use(express.json());
@@ -22,7 +22,7 @@ function JWTVerifyToken(req, res, next) {
     return res.status(401).send("UnAuthorized Access");
   }
   const token = authHeader.split(" ")[1];
-  Jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
+  jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
     if (err) {
       return res.send({ message: "Forbidden Access" });
     }
@@ -40,6 +40,12 @@ async function runRellerDb() {
     const bookingCollection = client
       .db("reseller-market")
       .collection("booking");
+    const paymentsCollection = client
+      .db("reseller-market")
+      .collection("payments");
+    const advertiseCollection = client
+      .db("reseller-market")
+      .collection("advertise");
     const verifyAdmin = async (req, res, next) => {
       const decodedEmail = req.decoded.email;
       const query = { email: decodedEmail };
@@ -62,6 +68,39 @@ async function runRellerDb() {
       const result = await bookingCollection.insertOne(req.body);
       res.send(result);
     });
+    app.get("/advertise", async (req, res) => {
+      const items = await advertiseCollection.find({}).toArray();
+      const results = items.filter(obj => {
+        return !obj.status;
+      });
+      res.send(results)
+    })
+    app.post("/advertise", async (req, res) => {
+      const filter = req.body;
+      const query = {
+        customer: filter.customer,
+        email: filter.email,
+        meet: filter.meet,
+      };
+      const alreadyCollected = await advertiseCollection.find(query).toArray();
+      if (alreadyCollected.length) {
+        return res.send({
+          success: false,
+          message: `Already have this Item in your Advertise `,
+        });
+      }
+
+      const result = await advertiseCollection.insertOne(filter);
+      if (result.insertedId) {
+        res.send({
+          success: true,
+        });
+      }
+    });
+    app.post("/payments", async (req, res) => {
+      const result = await paymentsCollection.insertOne(req.body);
+      res.send(result);
+    });
     app.get("/booking", async (req, res) => {
       const email = req.query.email;
       const query = { email: email };
@@ -71,6 +110,7 @@ async function runRellerDb() {
     app.post("/create-payment-intent", JWTVerifyToken, async (req, res) => {
       const order = req.body;
       const { price } = order;
+      console.log(price);
       const amount = parseFloat(price) * 100;
       const paymentIntent = await stripe.paymentIntents.create({
         currency: "usd",
@@ -81,17 +121,24 @@ async function runRellerDb() {
         clientSecret: paymentIntent.client_secret,
       });
     });
-    app.get("/booking/:id", JWTVerifyToken, async (req, res) => {
+    app.get("/booking/:id", async (req, res) => {
       const id = req.params.id;
       const result = await bookingCollection.findOne({ _id: ObjectId(id) });
       res.send(result);
     });
-    app.get("/category", JWTVerifyToken, async (req, res) => {
+    app.get("/category", async (req, res) => {
       const result = await categoriesItemCollection.find({}).toArray();
       const newItem = [...new Set(result.map((item) => item.brand))];
       res.send(newItem);
     });
-    app.get("/categoriesItem", JWTVerifyToken, async (req, res) => {
+    app.get("/category/:id", async (req, res) => {
+      const { id } = req.params;
+      const result = await categoriesItemCollection.findOne({
+        _id: ObjectId(id),
+      });
+      res.send(result);
+    });
+    app.get("/categoriesItem", async (req, res) => {
       const brand = req.query.brand;
       const query = { brand: brand };
       const result = await categoriesItemCollection.find(query).toArray();
@@ -117,7 +164,7 @@ async function runRellerDb() {
         res.send(result);
       }
     );
-    app.put("/products/:id", JWTVerifyToken, verifyAdmin, async (req, res) => {
+    app.put("/products/:id",  async (req, res) => {
       const { id } = req.params;
       const status = req.body.status;
       const updateStatus = {
@@ -125,10 +172,57 @@ async function runRellerDb() {
           status: status,
         },
       };
-      const result = await categoriesItemCollection.updateOne(
+      const result = await bookingCollection.updateOne(
         { _id: ObjectId(id) },
         updateStatus
       );
+      res.send(result);
+    });
+    app.put("/orders/:Cellphone", async (req, res) => {
+      const { Cellphone } = req.params;
+      const status = req.body.status;
+      const updateStatus = {
+        $set: {
+          status: status,
+        },
+      };
+      const result = await advertiseCollection.updateOne(
+        {Cellphone:Cellphone},
+        updateStatus
+      );
+      res.send(result);
+    });
+    app.put("/ordersOne/:Cellphone", async (req, res) => {
+      const { Cellphone } = req.params;
+      const status = req.body.status;
+      const updateStatus = {
+        $set: {
+          status: status,
+        },
+      };
+      const result= await advertiseCollection.updateOne(
+        {Cellphone:Cellphone},
+        updateStatus
+      );
+      res.send(result);
+    });
+    app.put("/ordersTwo/:Cellphone", async (req, res) => {
+      const { Cellphone } = req.params;
+      const status = req.body.status;
+      const updateStatus = {
+        $set: {
+          status: status,
+        },
+      };
+      const result= await categoriesItemCollection.updateOne(
+        {Cellphone:Cellphone},
+        updateStatus
+      );
+      res.send(result);
+    });
+    app.delete("/orders/:id", async (req, res) => {
+      const { id } = req.params;
+      const result = await bookingCollection.deleteOne({ _id: ObjectId(id) });
       res.send(result);
     });
     app.get("/categoriesItemDetails/:id", JWTVerifyToken, async (req, res) => {
@@ -192,7 +286,7 @@ async function runRellerDb() {
       const email = req.params.email;
       const query = { email: email };
       const user = await userCollection.findOne(query);
-      res.send({ isUser: user?.status === "user" });
+      res.send({ isUser: user?.account === "user" });
     });
     app.get("/users/seller/:email", async (req, res) => {
       const email = req.params.email;
