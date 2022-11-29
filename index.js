@@ -50,16 +50,7 @@ async function runRellerDb() {
     const wishlistCollection = client
       .db("reseller-market")
       .collection("wishlist");
-      // Verify Admin //
-    const verifyAdmin = async (req, res, next) => {
-      const decodedEmail = req.decoded.email;
-      const query = { email: decodedEmail };
-      const user = await userCollection.findOne(query);
-      if (user?.account !== "admin") {
-        return res.send("Fobidden Access");
-      }
-      next();
-    };
+
     const verifySeller = async (req, res, next) => {
       const decodedEmail = req.decoded.email;
       const query = { email: decodedEmail };
@@ -82,6 +73,17 @@ async function runRellerDb() {
     });
     app.post("/advertise", async (req, res) => {
       const filter = req.body;
+      const query = {
+        Cellphone: filter.Cellphone,
+        _id: filter._id,
+      };
+      const alreadyBooked = await advertiseCollection.find(query).toArray();
+      if (alreadyBooked.length) {
+        return res.send({
+          success: false,
+          message: `Already Booked `,
+        });
+      }
       const result = await advertiseCollection.insertOne(filter);
       if (result.insertedId) {
         res.send({
@@ -89,11 +91,11 @@ async function runRellerDb() {
         });
       }
     });
-    app.post("/payments",JWTVerifyToken, async (req, res) => {
+    app.post("/payments", JWTVerifyToken, async (req, res) => {
       const result = await paymentsCollection.insertOne(req.body);
       res.send(result);
     });
-    app.get("/booking",JWTVerifyToken, async (req, res) => {
+    app.get("/booking", JWTVerifyToken, async (req, res) => {
       const email = req.query.email;
       const query = { email: email };
       const result = await bookingCollection.find(query).toArray();
@@ -139,8 +141,7 @@ async function runRellerDb() {
     });
     app.put(
       "/users/seller/:email",
-      JWTVerifyToken,
-      verifyAdmin,
+
       async (req, res) => {
         const { email } = req.params;
         const status = req.body.status;
@@ -204,7 +205,7 @@ async function runRellerDb() {
       const result = await bookingCollection.deleteOne({ _id: ObjectId(id) });
       res.send(result);
     });
-   
+
     app.post(
       "/addCategoryItem",
       JWTVerifyToken,
@@ -221,19 +222,14 @@ async function runRellerDb() {
       const result = await categoriesItemCollection.find(query).toArray();
       res.send(result);
     });
-    app.delete(
-      "/myProducts/:id",
-      JWTVerifyToken,
-      verifyAdmin,
-      async (req, res) => {
-        const id = req.params.id;
-        const result = await categoriesItemCollection.deleteOne({
-          _id: ObjectId(id),
-        });
-        res.send(result);
-      }
-    );
-    app.delete("/users/:id", JWTVerifyToken, verifyAdmin, async (req, res) => {
+    app.delete("/myProducts/:id", JWTVerifyToken, async (req, res) => {
+      const id = req.params.id;
+      const result = await categoriesItemCollection.deleteOne({
+        _id: ObjectId(id),
+      });
+      res.send(result);
+    });
+    app.delete("/users/:id", async (req, res) => {
       const id = req.params.id;
       const result = await userCollection.deleteOne({ _id: ObjectId(id) });
       res.send(result);
@@ -273,8 +269,20 @@ async function runRellerDb() {
       const result = await userCollection.find(query).toArray();
       res.send(result);
     });
-    app.post("/wishlist",JWTVerifyToken, async (req, res) => {
+    app.post("/wishlist", async (req, res) => {
       const filter = req.body;
+      const query = {
+        Cellphone: filter.Cellphone,
+        _id: filter._id,
+      };
+      const alreadyBooked = await wishlistCollection.find(query).toArray();
+      if (alreadyBooked.length) {
+        return res.send({
+          success: false,
+          message: `Already Booked `,
+        });
+      }
+
       const result = await wishlistCollection.insertOne(filter);
       if (result.insertedId) {
         res.send({
@@ -283,8 +291,8 @@ async function runRellerDb() {
       }
     });
     app.get("/wishlist", async (req, res) => {
-      const email = req.query.email
-      const items = await wishlistCollection.find({email:email}).toArray();
+      const email = req.query.email;
+      const items = await wishlistCollection.find({ email: email }).toArray();
       const results = items.filter((obj) => {
         return !obj.status;
       });
