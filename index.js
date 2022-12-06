@@ -73,11 +73,7 @@ async function runRellerDb() {
     });
     app.post("/advertise", async (req, res) => {
       const filter = req.body;
-      const query = {
-        Cellphone: filter.Cellphone,
-        _id: filter._id,
-      };
-      const alreadyBooked = await advertiseCollection.find(query).toArray();
+    const alreadyBooked = await advertiseCollection.find({_id:ObjectId(filter._id)}).toArray();
       if (alreadyBooked.length) {
         return res.send({
           success: false,
