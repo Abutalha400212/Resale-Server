@@ -100,7 +100,6 @@ async function runRellerDb() {
     app.post("/create-payment-intent", JWTVerifyToken, async (req, res) => {
       const order = req.body;
       const { price } = order;
-      console.log(price);
       const amount = parseFloat(price) * 100;
       const paymentIntent = await stripe.paymentIntents.create({
         currency: "usd",
@@ -132,7 +131,10 @@ async function runRellerDb() {
       const brand = req.query.brand;
       const query = { brand: brand };
       const result = await categoriesItemCollection.find(query).toArray();
-
+      res.send(result);
+    });
+    app.get("/categories", async (req, res) => {
+      const result = await categoriesItemCollection.find({}).toArray();
       res.send(result);
     });
     app.put(
